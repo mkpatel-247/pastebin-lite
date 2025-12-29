@@ -15,7 +15,8 @@ const router = express.Router();
  * Copy scripts shared by paste and error pages
  */
 const copyScripts = `
-<script>
+<script
+>
     async function copyToClipboard(text, btn) {
         try {
             await navigator.clipboard.writeText(text);
@@ -60,12 +61,12 @@ const copyScripts = `
 router.get('/p/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { preview } = req.query; // Get preview token from query params
+    const currentTime = getCurrentTime(req);
 
-    // Find paste by ID
-    const paste = await Paste.findOne({ pasteId: id });
+    // Initial check for existence and expiry without incrementing
+    const initialPaste = await Paste.findOne({ pasteId: id });
 
-    if (!paste) {
+    if (!initialPaste) {
       return renderPage(res, 'error', {
         title: 'Error - Paste Not Found',
         bodyClass: 'h-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-shadow-grey-900',
@@ -73,9 +74,7 @@ router.get('/p/:id', async (req, res) => {
       }, 404);
     }
 
-    // Check if paste has expired using time utility
-    const currentTime = getCurrentTime(req);
-    if (paste.isExpiredAt(currentTime)) {
+    if (initialPaste.isExpiredAt(currentTime)) {
       return renderPage(res, 'error', {
         title: 'Error - Paste Expired',
         bodyClass: 'h-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-shadow-grey-900',
@@ -83,30 +82,27 @@ router.get('/p/:id', async (req, res) => {
       }, 404);
     }
 
-    // Check for creator preview token
-    let isCreatorPreview = false;
-    if (preview && paste.creatorToken && preview === paste.creatorToken) {
-      // Valid creator preview - clear the token (one-time use)
-      await Paste.updateOne(
-        { pasteId: id },
-        { $set: { creatorToken: null } }
-      );
-      isCreatorPreview = true;
-    } else {
-      // Normal view - check view limit and increment
-      if (paste.hasExceededViewLimit()) {
-        return renderPage(res, 'error', {
-          title: 'Error - View Limit Exceeded',
-          bodyClass: 'h-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-shadow-grey-900',
-          message: 'This paste has reached its view limit'
-        }, 404);
-      }
+    // Atomic increment with view limit check
+    const filter = {
+      pasteId: id,
+      $or: [
+        { maxViews: null },
+        { $expr: { $lt: ['$viewCount', '$maxViews'] } }
+      ]
+    };
 
-      // Increment view count atomically
-      await Paste.updateOne(
-        { pasteId: id },
-        { $inc: { viewCount: 1 } }
-      );
+    const paste = await Paste.findOneAndUpdate(
+      filter,
+      { $inc: { viewCount: 1 } },
+      { new: true }
+    );
+
+    if (!paste) {
+      return renderPage(res, 'error', {
+        title: 'Error - View Limit Exceeded',
+        bodyClass: 'h-full flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-shadow-grey-900',
+        message: 'This paste has reached its view limit'
+      }, 404);
     }
 
     // Build metadata
@@ -118,14 +114,13 @@ router.get('/p/:id', async (req, res) => {
       metadata.push(`Expires: ${new Date(paste.expiresAt).toLocaleString()}`);
     }
     if (paste.maxViews) {
-      // Account for whether this is a creator preview or normal view
-      const currentViewCount = isCreatorPreview ? paste.viewCount : (paste.viewCount + 1);
-      const remaining = Math.max(0, paste.maxViews - currentViewCount);
+      const remaining = Math.max(0, paste.maxViews - paste.viewCount);
       metadata.push(`Views remaining: ${remaining}`);
     }
 
-    // Construct full URL for sharing (without preview token)
-    const fullUrl = `${req.protocol}://${req.get('host')}/p/${paste.pasteId}`;
+    // Construct full URL for sharing
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const fullUrl = `${baseUrl}/p/${paste.pasteId}`;
 
     return renderPage(res, 'paste', {
       title: `Paste - ${paste.pasteId}`,
@@ -134,7 +129,7 @@ router.get('/p/:id', async (req, res) => {
       content: paste.content,
       fullUrl,
       metadata,
-      isCreatorPreview,
+      isCreatorPreview: false,
       scripts: copyScripts
     });
 

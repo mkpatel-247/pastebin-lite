@@ -55,10 +55,7 @@ router.post('/pastes', async (req, res) => {
         }
 
         // Generate unique paste ID
-        const pasteId = nanoid(10); // 10 character ID
-
-        // Generate one-time creator preview token
-        const creatorToken = nanoid(16); // 16 character token for security
+        const pasteId = nanoid(10);
 
         // Calculate expiry date if TTL is provided
         const expiresAt = ttl_seconds
@@ -72,15 +69,17 @@ router.post('/pastes', async (req, res) => {
             expiresAt,
             maxViews: max_views || null,
             viewCount: 0,
-            creatorToken,
             createdAt: new Date(getCurrentTime(req)),
         });
 
         await paste.save();
 
-        // Build the full URL with preview token
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-        const url = `${baseUrl}/p/${pasteId}?preview=${creatorToken}`;
+        // Build the full URL strictly matching requirement format
+        let baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+        if (baseUrl && !baseUrl.startsWith('http')) {
+            baseUrl = `${req.protocol || 'http'}://${baseUrl}`;
+        }
+        const url = `${baseUrl}/p/${pasteId}`;
 
         return res.status(201).json({
             id: pasteId,
@@ -112,41 +111,51 @@ router.post('/pastes', async (req, res) => {
 router.get('/pastes/:id', async (req, res) => {
     try {
         const { id } = req.params;
+        const currentTime = getCurrentTime(req);
 
-        // Find paste by ID
+        // findOne check first to check for expiry without incrementing
         const paste = await Paste.findOne({ pasteId: id });
 
         if (!paste) {
             return res.status(404).json({ error: 'Paste not found' });
         }
 
-        // Check if paste has expired using time utility
-        const currentTime = getCurrentTime(req);
+        // Check if paste has expired
         if (paste.isExpiredAt(currentTime)) {
             return res.status(404).json({ error: 'Paste has expired' });
         }
 
-        // Check if view limit has been exceeded
-        if (paste.hasExceededViewLimit()) {
+        // Atomic increment with view limit check
+        // We only increment if maxViews is null OR viewCount < maxViews
+        const filter = {
+            pasteId: id,
+            $or: [
+                { maxViews: null },
+                { $expr: { $lt: ['$viewCount', '$maxViews'] } }
+            ]
+        };
+
+        const updatedPaste = await Paste.findOneAndUpdate(
+            filter,
+            { $inc: { viewCount: 1 } },
+            { new: true }
+        );
+
+        if (!updatedPaste) {
+            // If findOne succeeded but findOneAndUpdate failed, it means view limit was hit
             return res.status(404).json({ error: 'Paste view limit exceeded' });
         }
 
-        // Increment view count atomically
-        await Paste.updateOne(
-            { pasteId: id },
-            { $inc: { viewCount: 1 } }
-        );
-
         // Calculate remaining views
-        const remainingViews = paste.maxViews
-            ? Math.max(0, paste.maxViews - (paste.viewCount + 1)) // +1 because we just incremented
+        const remainingViews = updatedPaste.maxViews
+            ? Math.max(0, updatedPaste.maxViews - updatedPaste.viewCount)
             : null;
 
         // Return paste data
         return res.status(200).json({
-            content: paste.content,
+            content: updatedPaste.content,
             remaining_views: remainingViews,
-            expires_at: paste.expiresAt ? paste.expiresAt.toISOString() : null,
+            expires_at: updatedPaste.expiresAt ? updatedPaste.expiresAt.toISOString() : null,
         });
 
     } catch (error) {

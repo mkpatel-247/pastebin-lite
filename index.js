@@ -92,7 +92,8 @@ app.get('/', (req, res) => {
         textarea::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
     `;
     const scripts = `
-    <script>
+    <script
+    >
         const form = document.getElementById('pasteForm');
         const submitBtn = document.getElementById('submitBtn');
         const loadingBtn = document.getElementById('loadingBtn');

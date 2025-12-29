@@ -48,11 +48,6 @@ const pasteSchema = new mongoose.Schema({
         required: true,
     },
 
-    // One-time creator preview token
-    creatorToken: {
-        type: String,
-        default: null,
-    },
 }, {
     // Add timestamps for createdAt and updatedAt
     timestamps: true,
