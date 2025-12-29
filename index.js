@@ -11,6 +11,7 @@ import { connectDB } from './src/config/database.js';
 import healthRouter from './src/routes/health.js';
 import pastesRouter from './src/routes/pastes.js';
 import viewerRouter from './src/routes/viewer.js';
+import path from 'path';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,7 +27,7 @@ app.use((req, res, next) => {
 });
 
 // Serve static files from 'public' directory
-app.use(express.static('public'));
+app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Connect to database on startup
 let dbConnected = false;
@@ -60,7 +61,11 @@ app.get('/config', (req, res) => {
 
 // 404 handler
 app.use((req, res) => {
-    res.status(404).json({ error: 'Route not found' });
+    if (req.accepts('html')) {
+        res.status(404).sendFile(path.join(process.cwd(), 'public', '404.html'));
+    } else {
+        res.status(404).json({ error: 'Route not found' });
+    }
 });
 
 // Error handling middleware

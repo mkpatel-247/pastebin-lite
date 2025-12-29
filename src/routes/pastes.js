@@ -75,7 +75,7 @@ router.post('/pastes', async (req, res) => {
         await paste.save();
 
         // Build the full URL
-        const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
         const url = `${baseUrl}/p/${pasteId}`;
 
         return res.status(201).json({

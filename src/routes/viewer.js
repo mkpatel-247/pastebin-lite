@@ -37,13 +37,20 @@ router.get('/p/:id', async (req, res) => {
       return res.status(404).send(renderErrorPage('This paste has expired'));
     }
 
-    // Check if view limit has been exceeded
     if (paste.hasExceededViewLimit()) {
       return res.status(404).send(renderErrorPage('This paste has reached its view limit'));
     }
 
-    // Render the paste
-    const html = renderPastePage(paste);
+    // Increment view count atomically
+    await Paste.updateOne(
+      { pasteId: id },
+      { $inc: { viewCount: 1 } }
+    );
+
+    // Render the paste (now with updated view count context roughly)
+    // Note: 'paste' variable still has old viewCount, but that's fine for display logic 
+    // unless we want to show strict "remaining" counts, which we handle in renderPastePage
+    const html = renderPastePage(paste, req);
     return res.status(200).send(html);
 
   } catch (error) {
@@ -55,10 +62,13 @@ router.get('/p/:id', async (req, res) => {
 /**
  * Render paste page HTML
  * @param {Object} paste - Paste document
+ * @param {Object} req - Express request object
  * @returns {string} HTML string
  */
-function renderPastePage(paste) {
+function renderPastePage(paste, req) {
   const escapedContent = escapeHTML(paste.content);
+  // Construct full URL for sharing
+  const fullUrl = `${req.protocol}://${req.get('host')}/p/${paste.pasteId}`;
 
   // Build metadata
   let metadataHtml = '';
@@ -74,7 +84,10 @@ function renderPastePage(paste) {
     metadataItems.push(`Expires: ${expiryDate}`);
   }
   if (paste.maxViews) {
-    const remaining = paste.maxViews - paste.viewCount;
+    // We incremented viewCount in the DB, but 'paste' object here is stale.
+    // If maxViews is 5, and this is the 1st view, paste.viewCount is 0.
+    // So remaining is 5 - (0 + 1) = 4.
+    const remaining = Math.max(0, paste.maxViews - (paste.viewCount + 1));
     metadataItems.push(`Views remaining: ${remaining}`);
   }
 
@@ -116,15 +129,28 @@ function renderPastePage(paste) {
         <span class="text-sm font-mono text-gray-500 bg-gray-200 px-2 py-1 rounded">ID: ${paste.pasteId}</span>
     </div>
 
+    <!-- Share Link Section -->
+    <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6 flex flex-col sm:flex-row items-center gap-3">
+        <span class="text-sm font-medium text-gray-700 whitespace-nowrap">Share Link:</span>
+        <div class="flex-1 w-full flex rounded-md shadow-sm">
+            <input type="text" readonly value="${fullUrl}" id="shareUrl" class="focus:ring-indigo-500 focus:border-indigo-500 flex-1 block w-full rounded-none rounded-l-md sm:text-sm border-gray-300 bg-gray-50 text-gray-500 p-2">
+            <button onclick="copyLink()" class="inline-flex items-center px-4 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-medium transition-colors">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
     <div class="bg-white px-2 py-6 shadow-xl sm:rounded-xl sm:px-10 border border-gray-100 min-h-[50vh]">
       ${metadataHtml}
-      <pre class="font-mono text-sm sm:text-base text-gray-800 whitespace-pre-wrap break-words leading-relaxed overflow-x-auto">${escapedContent}</pre>
+      <pre id="pasteContent" class="font-mono text-sm sm:text-base text-gray-800 whitespace-pre-wrap break-words leading-relaxed overflow-x-auto">${escapedContent}</pre>
     </div>
 
     <div class="mt-8 text-center">
-         <button onclick="copyToClipboard()" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+         <button onclick="copyContent()" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
             <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
             </svg>
             Copy Content
         </button>
@@ -132,25 +158,40 @@ function renderPastePage(paste) {
   </div>
 
   <script>
-    async function copyToClipboard() {
-        const text = document.querySelector('pre').innerText;
+    async function copyToClipboard(text, btn) {
         try {
             await navigator.clipboard.writeText(text);
-            const btn = document.querySelector('button');
             const originalHTML = btn.innerHTML;
-            btn.textContent = 'Copied!';
-            btn.classList.remove('bg-indigo-100', 'text-indigo-700');
-            btn.classList.add('bg-green-100', 'text-green-700');
+            const originalClasses = btn.className;
+            
+            btn.innerHTML = '<svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Copied!';
+            
+            // Temporary success style
+            if(btn.id !== 'shareUrl') { 
+               btn.classList.remove('bg-indigo-100', 'text-indigo-700', 'bg-gray-50', 'text-gray-700');
+               btn.classList.add('bg-green-100', 'text-green-700'); 
+            }
             
             setTimeout(() => {
                 btn.innerHTML = originalHTML;
-                btn.classList.add('bg-indigo-100', 'text-indigo-700');
-                btn.classList.remove('bg-green-100', 'text-green-700');
+                btn.className = originalClasses;
             }, 2000);
         } catch (err) {
             console.error('Failed to copy!', err);
             alert('Failed to copy to clipboard');
         }
+    }
+
+    function copyContent() {
+        const text = document.getElementById('pasteContent').innerText;
+        const btn = document.querySelector('button[onclick="copyContent()"]');
+        copyToClipboard(text, btn);
+    }
+
+    function copyLink() {
+        const text = document.getElementById('shareUrl').value;
+        const btn = document.querySelector('button[onclick="copyLink()"]');
+        copyToClipboard(text, btn);
     }
   </script>
 </body>
