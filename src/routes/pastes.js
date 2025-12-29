@@ -57,6 +57,9 @@ router.post('/pastes', async (req, res) => {
         // Generate unique paste ID
         const pasteId = nanoid(10); // 10 character ID
 
+        // Generate one-time creator preview token
+        const creatorToken = nanoid(16); // 16 character token for security
+
         // Calculate expiry date if TTL is provided
         const expiresAt = ttl_seconds
             ? calculateExpiryDate(ttl_seconds, req)
@@ -69,14 +72,15 @@ router.post('/pastes', async (req, res) => {
             expiresAt,
             maxViews: max_views || null,
             viewCount: 0,
+            creatorToken,
             createdAt: new Date(getCurrentTime(req)),
         });
 
         await paste.save();
 
-        // Build the full URL
+        // Build the full URL with preview token
         const baseUrl = `${req.protocol}://${req.get('host')}`;
-        const url = `${baseUrl}/p/${pasteId}`;
+        const url = `${baseUrl}/p/${pasteId}?preview=${creatorToken}`;
 
         return res.status(201).json({
             id: pasteId,
@@ -135,7 +139,7 @@ router.get('/pastes/:id', async (req, res) => {
 
         // Calculate remaining views
         const remainingViews = paste.maxViews
-            ? paste.maxViews - (paste.viewCount + 1) // +1 because we just incremented
+            ? Math.max(0, paste.maxViews - (paste.viewCount + 1)) // +1 because we just incremented
             : null;
 
         // Return paste data

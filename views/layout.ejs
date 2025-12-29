@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full antialiased">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="../public/favicon.ico">
+    <title>
+        <%= title %>
+    </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f1f5f9',
+                            100: '#e2e8f0',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        },
+                        espresso: {
+                            50: '#f8efec',
+                            100: '#f1dfda',
+                            200: '#e4beb4',
+                            300: '#d69e8f',
+                            400: '#c97e69',
+                            500: '#bb5e44',
+                            600: '#964b36',
+                            700: '#703829',
+                            800: '#4b251b',
+                            900: '#25130e',
+                            950: '#1a0d09'
+                        },
+                        'golden-chestnut': {
+                            50: '#f8f2ed',
+                            100: '#f0e6db',
+                            200: '#e1ccb7',
+                            300: '#d3b392',
+                            400: '#c4996e',
+                            500: '#b5804a',
+                            600: '#91663b',
+                            700: '#6d4d2c',
+                            800: '#48331e',
+                            900: '#241a0f',
+                            950: '#19120a'
+                        },
+                        'powder-petal': {
+                            50: '#f6f2ef',
+                            100: '#ede4de',
+                            200: '#dacabe',
+                            300: '#c8af9d',
+                            400: '#b6947c',
+                            500: '#a37a5c',
+                            600: '#836149',
+                            700: '#624937',
+                            800: '#413125',
+                            900: '#211812',
+                            950: '#17110d'
+                        },
+                        'dim-grey': {
+                            50: '#f2f3f3',
+                            100: '#e5e6e6',
+                            200: '#cacdce',
+                            300: '#b0b4b5',
+                            400: '#969b9c',
+                            500: '#7c8283',
+                            600: '#636869',
+                            700: '#4a4e4f',
+                            800: '#313435',
+                            900: '#191a1a',
+                            950: '#111212'
+                        },
+                        'shadow-grey': {
+                            50: '#f1f2f3',
+                            100: '#e4e4e7',
+                            200: '#c8cad0',
+                            300: '#adafb8',
+                            400: '#9295a0',
+                            500: '#777a88',
+                            600: '#5f626d',
+                            700: '#474952',
+                            800: '#2f3137',
+                            900: '#18181b',
+                            950: '#111113'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <% if (locals.extraStyles) { %>
+        <style>
+            <%- extraStyles %>
+        </style>
+        <% } %>
+</head>
+
+<body class="<%= locals.bodyClass || 'h-full bg-shadow-grey-900' %>">
+    <%- body %>
+        <% if (locals.scripts) { %>
+            <%- scripts %>
+                <% } %>
+</body>
+
+</html>
