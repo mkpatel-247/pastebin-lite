@@ -7,10 +7,10 @@
 
 import 'dotenv/config';
 import express from 'express';
-import { connectDB } from './config/database.js';
-import healthRouter from './routes/health.js';
-import pastesRouter from './routes/pastes.js';
-import viewerRouter from './routes/viewer.js';
+import { connectDB } from './src/config/database.js';
+import healthRouter from './src/routes/health.js';
+import pastesRouter from './src/routes/pastes.js';
+import viewerRouter from './src/routes/viewer.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;

@@ -48,8 +48,7 @@ Edit `.env` and configure:
 
 ```env
 # MongoDB Connection
-MONGODB_URI=mongodb://localhost:27017/pastebin-lite
-# For MongoDB Atlas: mongodb+srv://username:password@cluster.mongodb.net/pastebin-lite
+MONGODB_URI=connection_string
 
 # Application Base URL
 BASE_URL=http://localhost:3000
