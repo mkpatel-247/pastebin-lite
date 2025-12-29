@@ -25,6 +25,9 @@ app.use((req, res, next) => {
     next();
 });
 
+// Serve static files from 'public' directory
+app.use(express.static('public'));
+
 // Connect to database on startup
 let dbConnected = false;
 connectDB()

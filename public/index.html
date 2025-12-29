@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50 antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pastebin Lite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for textarea */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-4xl w-full space-y-8">
+        <div class="text-center">
+            <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight sm:text-5xl mb-2">
+                Pastebin<span class="text-indigo-600">Lite</span>
+            </h1>
+            <p class="text-lg text-gray-600">
+                Share text and code snippets with optional expiration and view limits.
+            </p>
+        </div>
+
+        <div class="bg-white py-8 px-4 shadow-xl sm:rounded-xl sm:px-10 border border-gray-100">
+            <form id="pasteForm" class="space-y-6">
+                <!-- Content Area -->
+                <div>
+                    <label for="content" class="block text-sm font-medium text-gray-700 mb-2">
+                        Content
+                    </label>
+                    <div class="relative rounded-md shadow-sm">
+                        <textarea
+                            id="content"
+                            name="content"
+                            rows="12"
+                            class="focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-4 font-mono text-gray-800 bg-gray-50"
+                            placeholder="Paste your text or code here..."
+                            required
+                        ></textarea>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-6">
+                    <!-- Expiration -->
+                    <div class="flex-1">
+                        <label for="ttl" class="block text-sm font-medium text-gray-700 mb-2">
+                            Expiration
+                        </label>
+                        <select
+                            id="ttl"
+                            name="ttl"
+                            class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        >
+                            <option value="">Never</option>
+                            <option value="300">5 Minutes</option>
+                            <option value="3600">1 Hour</option>
+                            <option value="86400">1 Day</option>
+                            <option value="604800">1 Week</option>
+                            <option value="2592000">1 Month</option>
+                        </select>
+                    </div>
+
+                    <!-- Max Views -->
+                    <div class="flex-1">
+                        <label for="max_views" class="block text-sm font-medium text-gray-700 mb-2">
+                            Max Views (Optional)
+                        </label>
+                        <input
+                            type="number"
+                            name="max_views"
+                            id="max_views"
+                            class="focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-2"
+                            placeholder="e.g. 5"
+                            min="1"
+                        >
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="pt-4">
+                    <button
+                        type="submit"
+                        id="submitBtn"
+                        class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                    >
+                        Create Paste
+                    </button>
+                    <!-- Loading State (hidden by default) -->
+                    <button
+                        type="button"
+                        id="loadingBtn"
+                        class="hidden w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-400 cursor-not-allowed"
+                        disabled
+                    >
+                        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Creating...
+                    </button>
+                </div>
+
+                <!-- Error Message -->
+                <div id="errorMessage" class="hidden rounded-md bg-red-50 p-4 border border-red-200">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-red-800" id="errorText">
+                                <!-- Error text goes here -->
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <p class="text-center text-sm text-gray-500">
+            &copy; 2025 Pastebin-Lite. Simple, fast, secure.
+        </p>
+    </div>
+
+    <script>
+        const form = document.getElementById('pasteForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingBtn = document.getElementById('loadingBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Reset UI
+            errorMessage.classList.add('hidden');
+            submitBtn.classList.add('hidden');
+            loadingBtn.classList.remove('hidden');
+
+            // Gather data
+            const formData = new FormData(form);
+            const content = formData.get('content');
+            const ttl = formData.get('ttl');
+            const maxViews = formData.get('max_views');
+
+            const payload = {
+                content: content,
+            };
+
+            if (ttl) {
+                payload.ttl_seconds = parseInt(ttl, 10);
+            }
+            if (maxViews) {
+                payload.max_views = parseInt(maxViews, 10);
+            }
+
+            try {
+                const response = await fetch('/api/pastes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Something went wrong');
+                }
+
+                // Redirect to the new paste
+                window.location.href = data.url;
+
+            } catch (error) {
+                console.error('Error:', error);
+                errorText.textContent = error.message;
+                errorMessage.classList.remove('hidden');
+                
+                // Reset buttons
+                submitBtn.classList.remove('hidden');
+                loadingBtn.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
