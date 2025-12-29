@@ -21,7 +21,7 @@ export async function connectDB() {
     }
 
     try {
-        const MONGODB_URI = process.env.MONGODB_URI;
+        const MONGODB_URI = process.env.MONGODB_URI || process.env.DB_CONN_MONGODB_URI;
 
         if (!MONGODB_URI) {
             throw new Error('MONGODB_URI environment variable is not defined');
