@@ -45,7 +45,7 @@ app.use('/api', pastesRouter);
 app.use('/', viewerRouter);
 
 // Root route
-app.get('/', (req, res) => {
+app.get('/config', (req, res) => {
     res.status(200).json({
         name: 'Pastebin-Lite',
         version: '1.0.0',
