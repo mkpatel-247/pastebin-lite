@@ -320,17 +320,18 @@ The `vercel.json` file configures serverless deployment:
 
 ```
 pastebin-lite/
-├── config/
-│   └── database.js          # MongoDB connection manager
-├── models/
-│   └── Paste.js             # Paste Mongoose schema
-├── routes/
-│   ├── health.js            # Health check endpoint
-│   ├── pastes.js            # Paste API routes
-│   └── viewer.js            # HTML viewer route
-├── utils/
-│   ├── sanitize.js          # XSS prevention utilities
-│   └── time.js              # Time abstraction for testing
+├── src/
+│   ├── config/
+│   │   └── database.js          # MongoDB connection manager
+│   ├── models/
+│   │   └── Paste.js             # Paste Mongoose schema
+│   ├── routes/
+│   │   ├── health.js            # Health check endpoint
+│   │   ├── pastes.js            # Paste API routes
+│   │   └── viewer.js            # HTML viewer route
+│   ├── utils/
+│   │   ├── sanitize.js          # XSS prevention utilities
+│   │   └── time.js              # Time abstraction for testing
 ├── .env                     # Environment variables (gitignored)
 ├── .env.example             # Environment template
 ├── .gitignore
